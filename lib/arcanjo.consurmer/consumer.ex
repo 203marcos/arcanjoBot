@@ -11,12 +11,27 @@ defmodule Arcanjo.Consumer do
       String.starts_with?(msg.content, "!oie") ->
         embed = %{
           title: "Olá",
-          description: "Tudo bem com você? Segue a lista de comandos disponível",
+          description: "Tudo bem com você? Segue a lista de comandos disponíveis, vem comigo bebe:",
           color: 0x0074E7,
           fields: [
             %{
               name: "!ppt",
-              value: "Use este comando para jogar pedra, papel ou tesoura",
+              value: "Use este comando para jogar pedra, papel ou tesoura.",
+              inline: true
+            },
+            %{
+              name: "!cep",
+              value: "Use este comando para buscar informações de um CEP. Exemplo: `!cep 01001000`.",
+              inline: true
+            },
+            %{
+              name: "!uvSun",
+              value: "Use este comando para obter dados UV de uma localização. Exemplo: `!uvSun <latitude> <longitude>`.",
+              inline: true
+            },
+            %{
+              name: "!miau",
+              value: "Use este comando para receber uma imagem de um gato aleatório.",
               inline: true
             }
           ],
@@ -37,7 +52,11 @@ defmodule Arcanjo.Consumer do
 
       String.starts_with?(msg.content, "!uvSun") ->
         result = get_uv_data(validate_uv_command(msg.content))
-        Nostrum.Api.create_message(msg.channel_id, result)
+        Api.Message.create(msg.channel_id, result)
+
+      String.starts_with?(msg.content, "!miau") ->
+        result = get_cat_image()
+        Api.Message.create(msg.channel_id, result)
 
       true ->
         :ignore
@@ -146,5 +165,35 @@ defmodule Arcanjo.Consumer do
 
   def get_uv_data(_) do
     "Comando inválido. Use: **!uvSun latitude longitude**"
+  end
+
+  def get_cat_image do
+    url = "https://api.thecatapi.com/v1/images/search"
+
+    case HTTPoison.get(url, [{"Content-Type", "application/json"}]) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, [cat_data | _]} ->
+            image_url = cat_data["url"]
+            width = cat_data["width"]
+            height = cat_data["height"]
+
+            """
+            **Aqui está um gato para você!** 🐱
+            - **URL da Imagem:** #{image_url}
+            - **Largura:** #{width}px
+            - **Altura:** #{height}px
+            """
+
+          _ ->
+            "Erro ao processar os dados da API do gato."
+        end
+
+      {:ok, %HTTPoison.Response{status_code: status, body: body}} ->
+        "Erro da API The Cat API (#{status}): #{body}"
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        "Erro ao conectar à API The Cat API: #{reason}"
+    end
   end
 end
