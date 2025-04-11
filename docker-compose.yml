@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+    arcanjo-bot:
+        build: .
+        container_name: arcanjo-bot
+        env_file: config/.env
+        ports:
+            - "4000:4000" # Mapeia a porta 4000 do container para a máquina host
+        command: mix run --no-halt

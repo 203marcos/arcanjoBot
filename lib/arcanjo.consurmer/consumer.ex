@@ -35,6 +35,10 @@ defmodule Arcanjo.Consumer do
         result = get_cep_data(validate_cep_command(msg.content))
         Api.Message.create(msg.channel_id, result)
 
+      String.starts_with?(msg.content, "!uvSun") ->
+        result = get_uv_data(validate_uv_command(msg.content))
+        Nostrum.Api.create_message(msg.channel_id, result)
+
       true ->
         :ignore
     end
@@ -94,5 +98,53 @@ defmodule Arcanjo.Consumer do
 
   def return_ppt_result(_) do
     "Comando inválido. Use: **!ppt pedra|papel|tesoura**"
+  end
+
+  def validate_uv_command(content) do
+    command = String.split(content, " ")
+
+    case command do
+      ["!uvSun", lat, lng] -> {:ok, lat, lng}
+      _ -> :error
+    end
+  end
+
+  def get_uv_data({:ok, lat, lng}) do
+    api_key = System.get_env("OPENUV_API_KEY")
+    url = "https://api.openuv.io/api/v1/uv?lat=#{lat}&lng=#{lng}"
+
+    headers = [{"x-access-token", api_key}, {"Content-Type", "application/json"}]
+
+    case HTTPoison.get(url, headers) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, %{"result" => result}} ->
+            uv_max = result["uv_max"]
+            uv_min = result["uv"]
+            uv_avg = Float.round((uv_max + uv_min) / 2, 2)
+            weather_emoji = if uv_max > 3, do: "☀️ (Sol)", else: "🌧️ (Chuva)"
+
+            """
+            **Dados UV Simplificados:**
+            - **UV Máximo:** #{uv_max}
+            - **UV Mínimo:** #{uv_min}
+            - **UV Médio:** #{uv_avg}
+            - **Previsão:** #{weather_emoji}
+            """
+
+          _ ->
+            "Erro ao processar os dados da API."
+        end
+
+      {:ok, %HTTPoison.Response{status_code: status, body: body}} ->
+        "Erro da API OpenUV (#{status}): #{body}"
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        "Erro ao conectar à API OpenUV: #{reason}"
+    end
+  end
+
+  def get_uv_data(_) do
+    "Comando inválido. Use: **!uvSun latitude longitude**"
   end
 end
