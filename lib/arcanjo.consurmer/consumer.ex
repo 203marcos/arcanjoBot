@@ -11,7 +11,31 @@ defmodule Arcanjo.Consumer do
       String.starts_with?(msg.content, "!oie") ->
         embed = %{
           title: "Olá",
-          description: "Tudo bem com você? Segue a lista de comandos disponíveis, vem comigo bebe:",
+          description: "Tudo bem com você? Segue a lista de categorias de comandos disponíveis:",
+          color: 0x0074E7,
+          fields: [
+            %{
+              name: "!oldcommands",
+              value: "Veja os comandos antigos disponíveis.",
+              inline: true
+            },
+            %{
+              name: "!newcommands",
+              value: "Veja os novos comandos disponíveis.",
+              inline: true
+            }
+          ],
+          author: %{
+            name: "ArcanjoBot"
+          }
+        }
+
+        Api.Message.create(msg.channel_id, %{embed: embed})
+
+      String.starts_with?(msg.content, "!oldcommands") ->
+        embed = %{
+          title: "Comandos Antigos",
+          description: "Aqui estão os comandos antigos disponíveis:",
           color: 0x0074E7,
           fields: [
             %{
@@ -23,7 +47,21 @@ defmodule Arcanjo.Consumer do
               name: "!cep",
               value: "Use este comando para buscar informações de um CEP. Exemplo: `!cep 01001000`.",
               inline: true
-            },
+            }
+          ],
+          author: %{
+            name: "ArcanjoBot"
+          }
+        }
+
+        Api.Message.create(msg.channel_id, %{embed: embed})
+
+      String.starts_with?(msg.content, "!newcommands") ->
+        embed = %{
+          title: "Novos Comandos",
+          description: "Aqui estão os novos comandos disponíveis:",
+          color: 0x0074E7,
+          fields: [
             %{
               name: "!uvSun",
               value: "Use este comando para obter dados UV de uma localização. Exemplo: `!uvSun <latitude> <longitude>`.",
@@ -32,6 +70,21 @@ defmodule Arcanjo.Consumer do
             %{
               name: "!miau",
               value: "Use este comando para receber uma imagem de um gato aleatório.",
+              inline: true
+            },
+            %{
+              name: "!piadocas",
+              value: "Use este comando para receber uma piada de programação.",
+              inline: true
+            },
+            %{
+              name: "!dado",
+              value: "Use este comando para rolar um dado e decidir seu destino.",
+              inline: true
+            },
+            %{
+              name: "!clima",
+              value: "Use este comando para obter informações sobre o clima de uma cidade. Exemplo: `!clima São Paulo`.",
               inline: true
             }
           ],
@@ -55,12 +108,21 @@ defmodule Arcanjo.Consumer do
         Api.Message.create(msg.channel_id, result)
 
       String.starts_with?(msg.content, "!miau") ->
-        result = get_cat_image(:ok)
+        result = get_cat_image(validate_cat_command(msg.content))
         Api.Message.create(msg.channel_id, result)
 
       String.starts_with?(msg.content, "!piadocas") ->
         result = get_joke()
         Api.Message.create(msg.channel_id, result)
+
+      String.starts_with?(msg.content, "!dado") ->
+        result = get_dice_roll(validate_dice_command(msg.content))
+        Api.Message.create(msg.channel_id, result)
+
+      String.starts_with?(msg.content, "!clima") ->
+        result = get_weather(validate_weather_command(msg.content))
+        Api.Message.create(msg.channel_id, result)
+
       true ->
         :ignore
     end
@@ -170,6 +232,53 @@ defmodule Arcanjo.Consumer do
     "Comando inválido. Use: **!uvSun latitude longitude**"
   end
 
+  def validate_weather_command(content) do
+    command = String.split(content, " ")
+
+    case command do
+      ["!clima", city] -> {:ok, city}
+      _ -> :error
+    end
+  end
+
+  def get_weather({:ok, city}) do
+    api_key = System.get_env("OPENWEATHER_API_KEY")
+    url = "https://api.openweathermap.org/data/2.5/weather?q=#{URI.encode(city)}&appid=#{api_key}&units=metric&lang=pt_br"
+
+    case HTTPoison.get(url, [{"Content-Type", "application/json"}]) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, %{"main" => %{"temp" => temp}, "weather" => [%{"description" => desc}]}} ->
+            """
+            🌤️ **Clima em #{String.capitalize(city)}:**
+            - **Temperatura:** #{temp}°C
+            - **Condições:** #{desc}
+            """
+          _ -> "Erro ao processar os dados do clima."
+        end
+
+      {:ok, %HTTPoison.Response{status_code: 404}} ->
+        "Cidade não encontrada. Verifique o nome e tente novamente. 🌍"
+
+      {:ok, %HTTPoison.Response{status_code: status}} ->
+        "Erro da API OpenWeatherMap (#{status}). Verifique os parâmetros enviados."
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        "Erro ao conectar à API OpenWeatherMap: #{reason}"
+    end
+  end
+
+  def get_weather(_) do
+    "Comando inválido. Use: **!clima <cidade>**"
+  end
+
+  def validate_cat_command(content) do
+    case String.split(content, " ") do
+      ["!miau"] -> :ok
+      _ -> :error
+    end
+  end
+
   def get_cat_image(:ok) do
     url = "https://api.thecatapi.com/v1/images/search"
 
@@ -244,5 +353,46 @@ defmodule Arcanjo.Consumer do
 
   def get_joke(_) do
     "Comando inválido. Use: **!piadocas**"
+  end
+
+  def validate_dice_command(content) do
+    case String.split(content, " ") do
+      ["!dado"] -> :ok
+      _ -> :error
+    end
+  end
+
+  def get_dice_roll(:ok) do
+    url = "https://www.randomnumberapi.com/api/v1.0/random?min=1&max=6&count=1"
+
+    case HTTPoison.get(url, [{"Content-Type", "application/json"}]) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, [dice_roll]} ->
+            if dice_roll == 6 do
+              """
+              🎲 O dado rolou **#{dice_roll}**! Parece que você deve ir pra aula...
+              Mas vamos jogar novamente, esse dado tá estranho! 😅
+              """
+            else
+              """
+              🎲 O dado rolou **#{dice_roll}**! Você pode ficar em casa. Aproveite o descanso! 😎
+              """
+            end
+
+          _ ->
+            "Erro ao processar os dados da API do dado."
+        end
+
+      {:ok, %HTTPoison.Response{status_code: status, body: body}} ->
+        "Erro da API Random Number API (#{status}): #{body}"
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        "Erro ao conectar à API Random Number API: #{reason}"
+    end
+  end
+
+  def get_dice_roll(_) do
+    "Comando inválido. Use: **!dado**"
   end
 end
