@@ -55,9 +55,12 @@ defmodule Arcanjo.Consumer do
         Api.Message.create(msg.channel_id, result)
 
       String.starts_with?(msg.content, "!miau") ->
-        result = get_cat_image()
+        result = get_cat_image(:ok)
         Api.Message.create(msg.channel_id, result)
 
+      String.starts_with?(msg.content, "!piadocas") ->
+        result = get_joke()
+        Api.Message.create(msg.channel_id, result)
       true ->
         :ignore
     end
@@ -167,7 +170,7 @@ defmodule Arcanjo.Consumer do
     "Comando inválido. Use: **!uvSun latitude longitude**"
   end
 
-  def get_cat_image do
+  def get_cat_image(:ok) do
     url = "https://api.thecatapi.com/v1/images/search"
 
     case HTTPoison.get(url, [{"Content-Type", "application/json"}]) do
@@ -195,5 +198,51 @@ defmodule Arcanjo.Consumer do
       {:error, %HTTPoison.Error{reason: reason}} ->
         "Erro ao conectar à API The Cat API: #{reason}"
     end
+  end
+
+  def get_cat_image(_) do
+    "Comando inválido. Use: **!miau**"
+  end
+
+  def get_joke() do
+    get_joke(:ok)
+  end
+
+  def get_joke(:ok) do
+    url = "https://v2.jokeapi.dev/joke/Programming"
+
+    case HTTPoison.get(url, [{"Content-Type", "application/json"}]) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, %{"type" => "single", "joke" => joke}} ->
+            """
+            **Aqui está uma piada para você!** 🤣
+            #{joke}
+            """
+
+          {:ok, %{"type" => "twopart", "setup" => setup, "delivery" => delivery}} ->
+            """
+            **Aqui está uma piada para você!** 🤣
+            **Setup:** #{setup}
+            **Punchline:** #{delivery}
+            """
+
+          {:ok, %{"error" => true, "message" => message}} ->
+            "Erro da API Joke API: #{message}"
+
+          _ ->
+            "Erro ao processar os dados da API da piada."
+        end
+
+      {:ok, %HTTPoison.Response{status_code: status, body: body}} ->
+        "Erro da API Joke API (#{status}): #{body}"
+
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        "Erro ao conectar à API Joke API: #{reason}"
+    end
+  end
+
+  def get_joke(_) do
+    "Comando inválido. Use: **!piadocas**"
   end
 end
