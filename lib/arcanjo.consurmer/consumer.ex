@@ -10,7 +10,9 @@ defmodule Arcanjo.Consumer do
     WeatherHelper,
     CatHelper,
     JokeHelper,
-    DiceHelper
+    DiceHelper,
+    CurrencyHelper,
+    HolidayHelper
   }
 
   def handle_event({:MESSAGE_CREATE, msg, _ws_status}) do
@@ -73,6 +75,26 @@ defmodule Arcanjo.Consumer do
               name: "!clima",
               value: "Use este comando para obter informações sobre o clima de uma cidade. Exemplo: `!clima São Paulo`.",
               inline: true
+            },
+            %{
+              name: "!dolar",
+              value: "Use este comando para saber a cotação do dólar.",
+              inline: true
+            },
+            %{
+              name: "!euro",
+              value: "Use este comando para saber a cotação do euro.",
+              inline: true
+            },
+            %{
+              name: "!btc",
+              value: "Use este comando para saber a cotação do bitcoin.",
+              inline: true
+            },
+            %{
+              name: "!feriados",
+              value: "Use este comando para listar os feriados nacionais do Brasil de um ano específico. Exemplo: `!feriados 2025`.",
+              inline: true
             }
           ],
           author: %{name: "ArcanjoBot"}
@@ -100,6 +122,18 @@ defmodule Arcanjo.Consumer do
 
       String.starts_with?(msg.content, "!clima") ->
         WeatherHelper.handle(msg)
+
+      String.starts_with?(msg.content, "!dolar") ->
+        CurrencyHelper.handle(msg)
+
+      String.starts_with?(msg.content, "!euro") ->
+        CurrencyHelper.handle(msg)
+
+      String.starts_with?(msg.content, "!btc") ->
+        CurrencyHelper.handle(msg)
+
+      String.starts_with?(msg.content, "!feriados") ->
+        HolidayHelper.handle(msg)
 
       true ->
         :ignore
