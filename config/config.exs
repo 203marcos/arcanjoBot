@@ -15,8 +15,10 @@ defmodule EnvLoader do
   end
 end
 
-# Carrega o arquivo .env
-EnvLoader.load_env("config/.env")
+# Verifica se o arquivo .env existe antes de carregá-lo
+if File.exists?("config/.env") do
+  EnvLoader.load_env("config/.env")
+end
 
 # Configuração do Nostrum
 config :nostrum,
