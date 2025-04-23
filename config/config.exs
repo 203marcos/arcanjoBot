@@ -23,4 +23,5 @@ end
 # Configuração do Nostrum
 config :nostrum,
   token: System.get_env("NOSTRUM_TOKEN"),
-  gateway_intents: :all
+  gateway_intents: :all,
+  ffmpeg: nil
