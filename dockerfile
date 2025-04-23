@@ -1,7 +1,7 @@
 # Use a imagem oficial do Elixir 1.18
 FROM elixir:1.18
 
-# Instale dependências do sistema
+# Instala pacotes do sistema
 RUN apt-get update && apt-get install -y \
     build-essential \
     inotify-tools \
@@ -12,21 +12,22 @@ RUN apt-get update && apt-get install -y \
 # Configure o diretório de trabalho
 WORKDIR /app
 
-# Copie apenas os arquivos necessários para instalar as dependências primeiro (cache otimizado)
+# Copia e instala dependências
 COPY mix.exs mix.lock ./
-
-# Instale as dependências do Elixir
 RUN mix local.hex --force && mix local.rebar --force
 RUN mix deps.get
 
-# Copie o restante do código do projeto
+# Copia o restante do projeto
 COPY . .
 
-# Compile o projeto
+# Compila o projeto
 RUN mix compile
 
-# Exponha a porta usada pelo bot (se necessário)
-EXPOSE 4000
+# Define variável de ambiente para evitar problemas com o tty
+ENV TERM xterm
 
-# Comando para iniciar o bot
+# Exponha a porta 8080 (mesmo que o bot não use HTTP, é uma boa prática)
+EXPOSE 8080
+
+# Comando final para rodar o bot
 CMD ["mix", "run", "--no-halt"]
