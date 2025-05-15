@@ -79,6 +79,4 @@ Once running, the bot will connect to your Discord server and listen for events.
 
 Contributions are welcome! Submit issues or pull requests to suggest improvements or new features.
 
-## License
 
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
